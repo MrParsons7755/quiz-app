@@ -1,38 +1,40 @@
-const { useState, useEffect } = React;
+// Demo questions in case Excel file fails to load
+const demoQuestions = [
+  { question: "What is 2 + 2?", answer: "4" },
+  { question: "What is the capital of France?", answer: "Paris" }
+];
 
 const QuizApp = () => {
   const [questions, setQuestions] = useState([]);
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [showAnswer, setShowAnswer] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
 
   useEffect(() => {
-    const loadQuestions = async () => {
-      try {
-        const workbook = XLSX.readFile('revision.xlsx');
-        const firstSheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[firstSheetName];
-        const data = XLSX.utils.sheet_to_json(worksheet);
-        
-        const formattedQuestions = data.map(row => ({
-          question: row.Question || row.question,
-          answer: row.Answer || row.answer
-        })).filter(q => q.question && q.answer);
+    // Start with demo questions for immediate feedback
+    setQuestions(demoQuestions);
+    setCurrentQuestion(demoQuestions[0]);
+    setLoading(false);
 
-        setQuestions(formattedQuestions);
-        if (formattedQuestions.length > 0) {
-          setCurrentQuestion(formattedQuestions[0]);
-        }
-        setLoading(false);
-      } catch (error) {
-        console.error('Error loading questions:', error);
-        setError('Failed to load questions. Please make sure your Excel file is properly formatted.');
-        setLoading(false);
-      }
-    };
-
-    loadQuestions();
+    // Try to load Excel file
+    try {
+      fetch('revision.xlsx')
+        .then(response => response.arrayBuffer())
+        .then(data => {
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const excelData = XLSX.utils.sheet_to_json(worksheet);
+          
+          if (excelData && excelData.length > 0) {
+            setQuestions(excelData);
+            setCurrentQuestion(excelData[0]);
+          }
+        })
+        .catch(error => console.log('Using demo questions:', error));
+    } catch (error) {
+      console.log('Falling back to demo questions:', error);
+    }
   }, []);
 
   const generateNewQuestion = () => {
@@ -42,27 +44,7 @@ const QuizApp = () => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-100 p-8 flex items-center justify-center">
-        <p className="text-xl">Loading questions...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-100 p-8 flex items-center justify-center">
-        <p className="text-xl text-red-600">{error}</p>
-      </div>
-    );
-  }
-
-  if (!currentQuestion) {
-    return (
-      <div className="min-h-screen bg-gray-100 p-8 flex items-center justify-center">
-        <p className="text-xl">No questions found. Please ensure your Excel file has Question and Answer columns.</p>
-      </div>
-    );
+    return <div className="min-h-screen bg-gray-100 p-8 flex items-center justify-center">Loading...</div>;
   }
 
   return (
@@ -72,13 +54,13 @@ const QuizApp = () => {
         <div className="space-y-6">
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
             <h2 className="text-xl font-semibold mb-4">Question:</h2>
-            <p className="text-lg">{currentQuestion.question}</p>
+            <p className="text-lg">{currentQuestion?.question}</p>
           </div>
           
           {showAnswer && (
             <div className="bg-green-50 p-6 rounded-lg shadow-sm border border-green-200">
               <h2 className="text-xl font-semibold mb-4">Answer:</h2>
-              <p className="text-lg">{currentQuestion.answer}</p>
+              <p className="text-lg">{currentQuestion?.answer}</p>
             </div>
           )}
           
@@ -103,4 +85,5 @@ const QuizApp = () => {
   );
 };
 
+const { useState, useEffect } = React;
 ReactDOM.createRoot(document.getElementById('root')).render(<QuizApp />);
